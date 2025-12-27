@@ -25,18 +25,62 @@ export default function Home() {
         body: JSON.stringify({ prompt: input, mode }),
       });
 
-      let data;
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        data = await response.json();
-      } else {
-        const text = await response.text();
-        console.error('API Error (Non-JSON):', text);
-        throw new Error(`Server error (${response.status}): The server returned an HTML error page instead of JSON.`);
+      if (!response.ok) {
+        throw new Error(response.statusText || 'Failed to generate plan');
       }
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate plan');
+      if (!response.body) {
+          throw new Error('No response body');
+      }
+
+      // Handle streaming response
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedText = '';
+
+      while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          accumulatedText += chunk;
+          // You could add a state to show real-time progress here if needed
+      }
+
+      // Helper to extract JSON from the accumulated text
+      const extractJSON = (str: string) => {
+        let jsonStr = str || '{}';
+        // Remove markdown code blocks if present
+        const codeBlockMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+        if (codeBlockMatch) {
+            jsonStr = codeBlockMatch[1];
+        }
+        // Find the JSON object
+        const firstBrace = jsonStr.indexOf('{');
+        const lastBrace = jsonStr.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+            jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
+        }
+        return JSON.parse(jsonStr);
+      };
+
+      let data;
+      try {
+          const parsedContent = extractJSON(accumulatedText);
+          
+          // Post-process the data (add IDs, normalize content)
+          if (parsedContent.pages) {
+            parsedContent.pages = parsedContent.pages.map((p: any, idx: number) => ({
+                ...p,
+                id: `page-${Date.now()}-${idx}`,
+                content: Array.isArray(p.content) ? p.content.join('\n') : p.content,
+                type: p.type || 'content'
+            }));
+          }
+          data = parsedContent;
+      } catch (parseError) {
+          console.error('JSON Parse Error:', parseError);
+          console.log('Raw text:', accumulatedText);
+          throw new Error('Failed to parse AI response. The generated content might be incomplete.');
       }
 
       // Step 1: Set the content plan first (so user sees result immediately)

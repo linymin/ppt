@@ -65,57 +65,43 @@ Mode: ${mode === 'detail' ? '详细脚本模式（侧重全面解释）' : '演�
 
 请只返回合法的 JSON 字符串，不要包含 markdown 格式（如 \`\`\`json）。`;
 
-    // 仅执行内容生成，移除设计生成以减少超时风险
-    const completion = await client.chat.completions.create({
+    // 开启流式传输 (stream: true)
+    const stream = await client.chat.completions.create({
         model: modelId,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: prompt },
         ],
         temperature: 0.7,
+        stream: true, // Enable streaming
     });
 
-    const contentStr = completion.choices[0].message.content;
-    console.log('AI Content Response:', contentStr); 
-
-    // Helper to extract JSON
-    const extractJSON = (str: string | null) => {
-        let jsonStr = str || '{}';
-        const codeBlockMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-        if (codeBlockMatch) {
-            jsonStr = codeBlockMatch[1];
+    // 创建一个 ReadableStream 来返回数据
+    const encoder = new TextEncoder();
+    const readable = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of stream) {
+            const content = chunk.choices[0]?.delta?.content || '';
+            if (content) {
+              controller.enqueue(encoder.encode(content));
+            }
+          }
+        } catch (err) {
+          console.error('Stream error:', err);
+          controller.error(err);
+        } finally {
+          controller.close();
         }
-        const firstBrace = jsonStr.indexOf('{');
-        const lastBrace = jsonStr.lastIndexOf('}');
-        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-            jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
-        }
-        return JSON.parse(jsonStr);
-    };
+      },
+    });
 
-    try {
-        const parsedContent = extractJSON(contentStr);
-
-        // Result no longer includes design
-        const result = {
-            ...parsedContent,
-            // design: ... (Fetched separately)
-        };
-
-        // Add IDs if missing and normalize content
-        if (result.pages) {
-            result.pages = result.pages.map((p: Record<string, any>, idx: number) => ({
-                ...p,
-                id: `page-${Date.now()}-${idx}`,
-                content: Array.isArray(p.content) ? p.content.join('\n') : p.content,
-                type: p.type || 'content' // Default to content if missing
-            }));
-        }
-        return NextResponse.json(result);
-    } catch (e) {
-        console.error("JSON Parse Error", e);
-        return NextResponse.json({ error: 'Failed to parse AI response', rawContent: contentStr }, { status: 500 });
-    }
+    return new NextResponse(readable, {
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Transfer-Encoding': 'chunked',
+      },
+    });
 
   } catch (error: any) {
     console.error('AI Generation Error:', error);

@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-// 设置最大执行时间为 60 秒
-export const maxDuration = 60;
+// 切换到 Edge Runtime，以支持更长的执行时间
+export const runtime = 'edge';
 
 const modelId = process.env.DOUBAO_MODEL_ID || 'doubao-seed-1-6-lite-251015';
 

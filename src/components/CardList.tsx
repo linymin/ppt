@@ -236,22 +236,15 @@ function SortableItem(props: any) {
     return (
       <div ref={setNodeRef} style={style} {...attributes}>
         {/* Pass listeners to children so they can attach to handle */}
-        {React.Children.map(props.children, child => {
+        {React.Children.map(props.children, (child, index) => {
             if (React.isValidElement(child)) {
-                // Check if it's the PPTCard component (it might be the 'add button' div too if we wrapped both)
-                // In our usage, SortableItem wraps PPTCard and the add button div.
-                // We only want to pass listeners to PPTCard.
-                // Actually, the structure in CardList is:
-                // <SortableItem> <PPTCard /> <div add-button /> </SortableItem>
-                // So we can clone PPTCard and pass dragListeners.
-                
-                // Simplified: Pass dragListeners to all children? No.
-                // We should probably just pass them to the first child or specifically PPTCard.
-                // Or better: Modify PPTCard to accept `dragListeners` prop.
-                
-                // Let's try to just render children, but we need to get listeners to the handle inside PPTCard.
-                // Option A: Pass listeners as a prop to SortableItem's children.
-                return React.cloneElement(child as React.ReactElement<any>, { dragListeners: listeners });
+                // Only pass dragListeners to the first child (PPTCard)
+                // The second child is usually the "Add Page" button wrapper which is a div
+                // and passing custom props to it causes React warnings.
+                if (index === 0) {
+                    return React.cloneElement(child as React.ReactElement<any>, { dragListeners: listeners });
+                }
+                return child;
             }
             return child;
         })}

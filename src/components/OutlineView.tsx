@@ -14,6 +14,13 @@ const TYPE_LABELS: Record<string, string> = {
   ending: '结束页',
 };
 
+const IMAGE_TYPE_LABELS: Record<string, string> = {
+  flow: '流程图',
+  logic: '逻辑图',
+  illustration: '插画',
+  custom: '自定义',
+};
+
 export function OutlineView({ plan }: OutlineViewProps) {
   return (
     <div className="flex flex-col h-full bg-white">
@@ -64,22 +71,24 @@ export function OutlineView({ plan }: OutlineViewProps) {
                   </div>
 
                   {/* Visual Suggestion Tag */}
-                  {(page.visualEnabled !== false && page.visual) && (
+                  {page.imageType && (
                     <div className="pt-1">
-                      <div className="inline-flex items-start gap-1.5 px-2 py-1.5 bg-indigo-50/50 border border-indigo-100/50 rounded-md max-w-full">
-                        <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider mt-0.5 flex-shrink-0">Vis</span>
-                        <span className="text-[10px] text-indigo-900/70 leading-snug italic">
-                          {page.visual}
+                      <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-gray-50 border border-gray-100 rounded-md">
+                        <span className="text-[10px] text-gray-500 font-medium">
+                          配图：{IMAGE_TYPE_LABELS[page.imageType] || '插画'}
                         </span>
                       </div>
                     </div>
                   )}
                   
-                  {page.visualEnabled === false && (
+                  {!page.imageType && (page.visualEnabled !== false) && (
+                     /* Fallback for legacy visual data or default */
                     <div className="pt-1">
-                       <span className="inline-block px-1.5 py-0.5 bg-gray-50 text-gray-400 text-[10px] rounded border border-gray-100 italic">
-                         无需配图
-                       </span>
+                      <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-gray-50 border border-gray-100 rounded-md">
+                        <span className="text-[10px] text-gray-500 font-medium">
+                          配图：插画
+                        </span>
+                      </div>
                     </div>
                   )}
                 </div>

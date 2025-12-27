@@ -29,7 +29,11 @@ import {
   X, 
   Wand2,
   LayoutList,
-  ChevronDown
+  ChevronDown,
+  Share2,
+  BrainCircuit,
+  User,
+  Image as IllustrationIcon
 } from 'lucide-react';
 
 // Simple utility if cn/clsx is not available
@@ -52,6 +56,13 @@ const PAGE_TYPES = [
   { value: 'transition', label: '过渡页' },
   { value: 'ending', label: '结束页' },
 ];
+
+const IMAGE_TYPES = [
+  { value: 'flow', label: '流程图', icon: Share2 },
+  { value: 'logic', label: '逻辑图', icon: BrainCircuit },
+  { value: 'illustration', label: '插画', icon: IllustrationIcon },
+  { value: 'custom', label: '自定义', icon: User },
+] as const;
 
 export function CardList({ pages, onUpdatePage, onAddPage, onDeletePage, onReorderPage }: CardListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -269,7 +280,6 @@ function PPTCard({ page, index, isEditing, onEditStart, onEditCancel, onEditSave
   const [editState, setEditState] = useState<PPTPage>(page);
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [isPolishingContent, setIsPolishingContent] = useState(false);
-  const [isGeneratingVisual, setIsGeneratingVisual] = useState(false);
 
   // Reset edit state when entering edit mode or page changes
   useEffect(() => {
@@ -282,23 +292,6 @@ function PPTCard({ page, index, isEditing, onEditStart, onEditCancel, onEditSave
     onEditSave(editState);
   };
 
-  const handleVisualToggle = async () => {
-    // Current state (defaults to true if undefined)
-    const isEnabled = editState.visualEnabled !== false;
-    const newState = { ...editState, visualEnabled: !isEnabled };
-    setEditState(newState);
-    
-    // Auto-generate visual prompt if enabling and empty
-    if (newState.visualEnabled && !newState.visual) {
-        setIsGeneratingVisual(true);
-        const result = await onPolish('visual', newState);
-        if (result) {
-            setEditState(prev => ({ ...prev, visual: result as string }));
-        }
-        setIsGeneratingVisual(false);
-    }
-  };
-
   const handleContentFromTitle = async () => {
     setIsGeneratingContent(true);
     const result = await onPolish('content_from_title', editState);
@@ -308,8 +301,6 @@ function PPTCard({ page, index, isEditing, onEditStart, onEditCancel, onEditSave
             setEditState(prev => ({ 
                 ...prev, 
                 content: (result as any).content || prev.content,
-                visual: (result as any).visual || prev.visual,
-                visualEnabled: true // Enable visual when generated
             }));
         } else {
              setEditState(prev => ({ ...prev, content: result as unknown as string }));
@@ -327,8 +318,6 @@ function PPTCard({ page, index, isEditing, onEditStart, onEditCancel, onEditSave
              setEditState(prev => ({ 
                 ...prev, 
                 content: (result as any).content || prev.content,
-                visual: (result as any).visual || prev.visual,
-                visualEnabled: true // Enable visual when generated
             }));
         } else {
             setEditState(prev => ({ ...prev, content: result as unknown as string }));
@@ -339,6 +328,32 @@ function PPTCard({ page, index, isEditing, onEditStart, onEditCancel, onEditSave
 
   const getTypeLabel = (type?: string) => {
     return PAGE_TYPES.find(t => t.value === type)?.label || '封面/标题'; // Default to cover/title if undefined or unknown
+  };
+
+  const renderImageTypeSelector = (currentType: string | undefined, onChange: (type: string) => void) => {
+      return (
+          <div className="flex items-center gap-2">
+              {IMAGE_TYPES.map((type) => {
+                  const Icon = type.icon;
+                  const isSelected = (currentType || 'illustration') === type.value;
+                  return (
+                      <button
+                          key={type.value}
+                          onClick={() => onChange(type.value)}
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all border ${
+                              isSelected 
+                                ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-sm' 
+                                : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300'
+                          }`}
+                          title={type.label}
+                      >
+                          <Icon className="w-3.5 h-3.5" />
+                          {type.label}
+                      </button>
+                  );
+              })}
+          </div>
+      );
   };
 
   if (isEditing) {
@@ -426,37 +441,13 @@ function PPTCard({ page, index, isEditing, onEditStart, onEditCancel, onEditSave
 
           <div className="h-px bg-gray-100 w-full" />
 
-          {/* Visual Section */}
+          {/* Image Type Section */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-               <div className="flex items-center gap-2 text-gray-500">
-                <ImageIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">视觉设计建议</span>
-              </div>
-              
-              <button 
-                onClick={handleVisualToggle}
-                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${editState.visualEnabled !== false ? 'bg-indigo-600' : 'bg-gray-200'}`}
-              >
-                <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${editState.visualEnabled !== false ? 'translate-x-5' : 'translate-x-1'}`} />
-              </button>
+            <div className="flex items-center gap-2 text-gray-500 mb-2">
+               <ImageIcon className="w-4 h-4" />
+               <span className="text-sm font-medium">配图选项</span>
             </div>
-            
-            {(editState.visualEnabled !== false) && (
-                 <div className="relative">
-                     <textarea
-                       value={editState.visual}
-                       onChange={(e) => setEditState({...editState, visual: e.target.value})}
-                       className="w-full min-h-[60px] p-3 bg-white border border-blue-100 rounded-lg text-sm text-gray-600 italic resize-y focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
-                       placeholder="Visual description..."
-                     />
-                 </div>
-             )}
-            {(editState.visualEnabled === false) && (
-                <div className="p-3 bg-gray-50 border border-gray-100 rounded-lg text-sm text-gray-400 italic text-center">
-                    无需配图
-                </div>
-            )}
+            {renderImageTypeSelector(editState.imageType, (type) => setEditState({...editState, imageType: type as any}))}
           </div>
         </div>
       </div>
@@ -524,28 +515,13 @@ function PPTCard({ page, index, isEditing, onEditStart, onEditCancel, onEditSave
         </div>
       </div>
 
-      {/* Visual Section */}
+      {/* Image Type Section (Interactive) */}
       <div className="px-3 pb-3 pt-1">
-        <div className="flex items-center gap-1.5 mb-1.5 text-gray-400">
+        <div className="flex items-center gap-1.5 mb-2 text-gray-400">
           <ImageIcon className="w-3 h-3" />
-          <span className="text-[10px] font-medium uppercase tracking-wide">视觉建议</span>
+          <span className="text-[10px] font-medium uppercase tracking-wide">配图选项</span>
         </div>
-        {page.visualEnabled !== false ? (
-            <div className="p-2 bg-gray-50/50 rounded border border-gray-100/50">
-               <div className="flex gap-1.5">
-                  <span className="text-indigo-400 mt-0.5">
-                     <Sparkles className="w-3 h-3" />
-                  </span>
-                  <p className="text-xs text-gray-500 leading-snug">
-                    {page.visual}
-                  </p>
-               </div>
-            </div>
-        ) : (
-            <div className="p-2 bg-gray-50/50 rounded border border-gray-100/50 text-center">
-                <span className="text-[10px] text-gray-400 italic">无需配图</span>
-            </div>
-        )}
+        {renderImageTypeSelector(page.imageType, (type) => onEditSave({ ...page, imageType: type as any }))}
       </div>
     </div>
   );

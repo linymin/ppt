@@ -3,9 +3,17 @@ export interface PPTPage {
   id: string;
   title: string;
   content: string;
-  visual: string;
-  visualEnabled?: boolean;
+  visual?: string; // @deprecated
+  visualEnabled?: boolean; // @deprecated
+  imageType?: 'flow' | 'logic' | 'illustration' | 'custom';
   type?: string; // e.g., 'cover', 'catalog', 'content', 'ending'
+}
+
+export interface ColorScheme {
+  name: string;
+  primary: string; // Hex
+  secondary: string[]; // Hex array
+  description?: string; // @deprecated
 }
 
 export interface DesignSystem {
@@ -27,7 +35,9 @@ export interface DesignSystem {
 
 export interface PPTPlan {
   topic: string;
-  design?: DesignSystem;
+  design?: DesignSystem; // Keeping this for backward compatibility if needed, but we might move to using colorSchemes
+  colorSchemes?: ColorScheme[]; // AI suggested schemes
+  selectedColorScheme?: ColorScheme; // Currently selected scheme
   pages: PPTPage[];
 }
 

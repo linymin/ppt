@@ -36,8 +36,17 @@ export async function POST(req: Request) {
    - 章节页 (chapter)
    - 内容页 (content)
    - 总结页 (conclusion)
-5. **视觉对齐**：为每一页提供具体的 AI 视觉创意提示词，提示词语言必须为中文，确保风格统一且与正文高度相关。
-6. **语言一致性**：必须使用与输入文字完全相同的语言输出（包括视觉提示词）。
+5. **色彩方案**：必须生成 3 个风格迥异的配色方案建议 (colorSchemes)。
+   - **配色原则**：严格遵守 60:30:10 原则。
+     - **Main Background (60%)**：极浅或极深的中性色（如暖白 #F5F5F7 或深灰 #1C1C1E），**严禁使用纯白(#FFFFFF)或纯黑(#000000)**。
+     - **Primary Action (30%)**：主色，需低饱和度、高质感（如莫兰迪色系、高级灰调）。
+     - **Secondary/Accent (10%)**：点缀色，需符合色环互补逻辑，避开高饱和度原色。
+   - **返回结构**：
+     - 'name': 方案名称（如"静谧深海"、"晨雾森林"）
+     - 'primary': 主色 Hex (Primary Action)
+     - 'secondary': [Main Background Hex, Secondary/Accent Hex] (注意顺序：第一个是背景色，第二个是点缀色)
+6. **配图建议**：根据内容自动推荐最合适的配图类型 (imageType)，选项为：flow (流程图), logic (逻辑图), illustration (插画), custom (自定义)。
+7. **语言一致性**：必须使用与输入文字完全相同的语言输出。
 7. **章节映射逻辑**：
    - 每一个【章节页 (chapter)】中列出的 N 个子话题/要点，必须在后面紧跟 N 个对应的【内容页 (content)】。
 
@@ -51,19 +60,27 @@ export async function POST(req: Request) {
 JSON 返回格式要求：
 {
   "topic": "PPT标题",
+  "colorSchemes": [
+    {
+      "name": "方案名称",
+      "primary": "#RRGGBB",
+      "secondary": ["#RRGGBB", "#RRGGBB"],
+      "description": "简短描述"
+    }
+  ],
   "pages": [
     {
       "title": "页面标题",
       "type": "title" | "toc" | "chapter" | "content" | "conclusion",
       "content": "核心内容要点。使用 \\n 换行。如果是列表，请以 - 开头。",
-      "visual": "视觉创意提示词（中文）。格式必须为：[主体] + [动作/场景] + [风格/材质] + [构图/光效] + [色调/氛围]。不要包含双引号。"
+      "imageType": "flow" | "logic" | "illustration" | "custom"
     }
   ]
 }
 
 Mode: ${mode === 'detail' ? '详细脚本模式（侧重全面解释）' : '演示胶片模式（侧重关键点和简洁）'}
 
-请只返回合法的 JSON 字符串，不要包含 markdown 格式（如 \`\`\`json）。`;
+请只返回合法的 JSON 字符串，严禁包含 markdown 格式（如 \`\`\`json）。`;
 
     // 开启流式传输 (stream: true)
     const stream = await client.chat.completions.create({

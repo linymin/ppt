@@ -3,8 +3,17 @@ import { PPTPlan } from '@/types';
 export function generateText(plan: PPTPlan): string {
   let text = `主题: ${plan.topic}\n\n`;
   
-  if (plan.design) {
-    text += `==================================================\n`;
+  // New Color Scheme Section
+  if (plan.selectedColorScheme) {
+    text += `[色彩方案]\n\n`;
+    text += `方案名称: ${plan.selectedColorScheme.name}\n`;
+    text += `Main Background (60%): ${plan.selectedColorScheme.secondary[0]}\n`;
+    text += `Primary Action (30%): ${plan.selectedColorScheme.primary}\n`;
+    text += `Secondary/Accent (10%): ${plan.selectedColorScheme.secondary[1]}\n`;
+    text += `\n`;
+  }
+  // Fallback to legacy design system if no new scheme selected but design exists
+  else if (plan.design) {
     text += `[视觉设计方案]\n\n`;
     
     text += `1. 设计风格: ${plan.design.style.name}\n`;
@@ -19,26 +28,28 @@ export function generateText(plan: PPTPlan): string {
     text += `3. 字体建议:\n`;
     text += `   - 标题: ${plan.design.fonts.title}\n`;
     text += `   - 正文: ${plan.design.fonts.body}\n`;
+    text += `\n`;
   }
 
-  text += `==================================================\n\n`;
+  const IMAGE_TYPE_LABELS: Record<string, string> = {
+    flow: '流程图',
+    logic: '逻辑图',
+    illustration: '插画',
+    custom: '自定义',
+  };
 
   plan.pages.forEach((page, index) => {
     text += `第 ${index + 1} 页 [${page.type || '页面'}]: ${page.title}\n`;
-    text += `--------------------------------------------------\n`;
     
     text += `[正文内容]\n`;
-    text += `${page.content}\n\n`;
+    text += `${page.content}\n`;
 
-    if (page.visualEnabled !== false) {
-       text += `[视觉建议]\n`;
-       text += `${page.visual || '(暂无建议)'}\n`;
-    } else {
-       text += `[视觉建议]\n`;
-       text += `(无需配图)\n`;
-    }
+    const imageType = page.imageType || 'illustration';
+    const label = IMAGE_TYPE_LABELS[imageType] || '插画';
     
-    text += `\n==================================================\n\n`;
+    text += `[配图]：${label}\n`;
+    
+    text += `\n`;
   });
 
   return text;

@@ -3,11 +3,12 @@
 import React, { useState } from 'react';
 import { PPTPlan, PPTPage, GenerationMode } from '@/types';
 import { InputForm } from '@/components/InputForm';
-import { OutlineView } from '@/components/OutlineView';
 import { CardList } from '@/components/CardList';
-import { DesignSystemBanner } from '@/components/DesignSystemBanner';
+import { OutlineView } from '@/components/OutlineView';
+import { ThemeSelector } from '@/components/ThemeSelector'; // Add this
 import { generateText } from '@/lib/markdown';
 import { Download, ArrowLeft } from 'lucide-react';
+import { ColorScheme } from '@/types'; // Add this
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
@@ -86,24 +87,6 @@ export default function Home() {
       // Step 1: Set the content plan first (so user sees result immediately)
       setPlan(data);
 
-      // Step 2: Fetch design separately (in background)
-      try {
-          const designResponse = await fetch('/api/design', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: input }),
-          });
-          
-          if (designResponse.ok) {
-              const designData = await designResponse.json();
-              // Update plan with design
-              setPlan(prev => prev ? { ...prev, design: designData } : null);
-          }
-      } catch (designError) {
-          console.error('Failed to generate design', designError);
-          // Non-critical error, just ignore or show toast
-      }
-
     } catch (error) {
       console.error('Generation failed', error);
       alert('Failed to generate plan. Please try again.');
@@ -146,6 +129,10 @@ export default function Home() {
     const newPages = [...plan.pages];
     newPages.splice(index, 0, newPage);
     setPlan({ ...plan, pages: newPages });
+  };
+
+  const handleColorSchemeSelect = (scheme: ColorScheme) => {
+    setPlan(prev => prev ? { ...prev, selectedColorScheme: scheme } : null);
   };
 
   const handleDownload = () => {
@@ -212,12 +199,12 @@ export default function Home() {
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col">
           
-          {/* Design System Banner (Scrolls naturally) */}
-          {plan.design && (
-            <div className="flex-shrink-0 bg-white border-b border-gray-200 z-40 relative">
-              <DesignSystemBanner design={plan.design} />
-            </div>
-          )}
+          {/* Theme Selector Banner */}
+          <ThemeSelector 
+            schemes={plan.colorSchemes} 
+            selected={plan.selectedColorScheme}
+            onSelect={handleColorSchemeSelect}
+          />
 
           {/* Bottom Split View (Sticky Wrapper) */}
           <div className="sticky top-12 flex-1 flex overflow-hidden p-4 gap-4 h-[calc(100vh-3rem)]">

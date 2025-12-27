@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-// 切换到 Edge Runtime，以支持更长的执行时间
+// 切换到 Edge Runtime
 export const runtime = 'edge';
 
 const modelId = process.env.DOUBAO_MODEL_ID || 'doubao-seed-1-6-lite-251015';
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
 
 核心准则（严禁违反）：
 1. **原子化拆分**：严禁将不同的二级/三级标题或不同编号的逻辑点合并在同一张幻灯片上。每一页幻灯片只能承载一个核心子标题或一个独立的概念。
-2. **不设页数上限**：根据内容的复杂程度，生成尽可能多的幻灯片。不要为了缩减篇幅而压缩内容，必须 100% 覆盖输入内容中的所有事实、数据和逻辑。
+2. **适度篇幅**：生成约 8-15 页的幻灯片，确保内容详实但不过于冗长。
 3. **深度覆盖**：提取并呈现输入内容中的所有核心数据、事实、逻辑论据。确保逻辑链条完整无缺。
 4. **结构化**：必须严格包含以下页面类型：
    - 封面页 (title)
@@ -40,7 +40,6 @@ export async function POST(req: Request) {
 6. **语言一致性**：必须使用与输入文字完全相同的语言输出（包括视觉提示词）。
 7. **章节映射逻辑**：
    - 每一个【章节页 (chapter)】中列出的 N 个子话题/要点，必须在后面紧跟 N 个对应的【内容页 (content)】。
-   - 例如：若章节页标题为“市场分析”，要点为“1.竞争格局”、“2.用户画像”，则后续必须生成两页：一页标题为“竞争格局”，另一页标题为“用户画像”。
 
 页面类型分布要求：
 - 封面页 (title): 1页。
@@ -66,6 +65,7 @@ Mode: ${mode === 'detail' ? '详细脚本模式（侧重全面解释）' : '演�
 
 请只返回合法的 JSON 字符串，不要包含 markdown 格式（如 \`\`\`json）。`;
 
+    // 仅执行内容生成，移除设计生成以减少超时风险
     const completion = await client.chat.completions.create({
         model: modelId,
         messages: [
@@ -96,24 +96,29 @@ Mode: ${mode === 'detail' ? '详细脚本模式（侧重全面解释）' : '演�
     try {
         const parsedContent = extractJSON(contentStr);
 
+        // Result no longer includes design
+        const result = {
+            ...parsedContent,
+            // design: ... (Fetched separately)
+        };
+
         // Add IDs if missing and normalize content
-        if (parsedContent.pages) {
-            parsedContent.pages = parsedContent.pages.map((p: Record<string, any>, idx: number) => ({
+        if (result.pages) {
+            result.pages = result.pages.map((p: Record<string, any>, idx: number) => ({
                 ...p,
                 id: `page-${Date.now()}-${idx}`,
                 content: Array.isArray(p.content) ? p.content.join('\n') : p.content,
                 type: p.type || 'content' // Default to content if missing
             }));
         }
-        return NextResponse.json(parsedContent);
+        return NextResponse.json(result);
     } catch (e) {
         console.error("JSON Parse Error", e);
         return NextResponse.json({ error: 'Failed to parse AI response', rawContent: contentStr }, { status: 500 });
     }
 
-  } catch (error: unknown) {
+  } catch (error: any) {
     console.error('AI Generation Error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

@@ -19,7 +19,6 @@ export default function Home() {
     setIsLoading(true);
     setOriginalContent(input); // Save original content
     try {
-      // 1. Generate Content First
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -40,23 +39,26 @@ export default function Home() {
         throw new Error(data.error || 'Failed to generate plan');
       }
 
-      // Set initial plan without design
+      // Step 1: Set the content plan first (so user sees result immediately)
       setPlan(data);
 
-      // 2. Fetch Design in parallel (or after) - forcing a separate request prevents timeout
-      // We don't block the UI, we just update the plan when it arrives
-      fetch('/api/design', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: input }),
-      })
-      .then(res => res.json())
-      .then(designData => {
-          if (designData && !designData.error) {
+      // Step 2: Fetch design separately (in background)
+      try {
+          const designResponse = await fetch('/api/design', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: input }),
+          });
+          
+          if (designResponse.ok) {
+              const designData = await designResponse.json();
+              // Update plan with design
               setPlan(prev => prev ? { ...prev, design: designData } : null);
           }
-      })
-      .catch(err => console.error('Design generation failed quietly:', err));
+      } catch (designError) {
+          console.error('Failed to generate design', designError);
+          // Non-critical error, just ignore or show toast
+      }
 
     } catch (error) {
       console.error('Generation failed', error);

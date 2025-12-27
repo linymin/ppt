@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-// 切换到 Edge Runtime，以支持更长的执行时间
+// 切换到 Edge Runtime
 export const runtime = 'edge';
 
 const modelId = process.env.DOUBAO_MODEL_ID || 'doubao-seed-1-6-lite-251015';
@@ -60,17 +60,16 @@ export async function POST(req: Request) {
 请只返回合法的 JSON 字符串，不要包含 markdown 格式（如 \`\`\`json）。`;
 
     const completion = await client.chat.completions.create({
-        model: modelId,
-        messages: [
-          { role: 'system', content: designSystemPrompt },
-          { role: 'user', content: prompt },
-        ],
-        temperature: 0.7,
+      model: modelId,
+      messages: [
+        { role: 'system', content: designSystemPrompt },
+        { role: 'user', content: prompt },
+      ],
+      temperature: 0.7,
     });
 
     const result = completion.choices[0].message.content;
-    console.log('AI Design Response:', result);
-
+    
     // Helper to extract JSON
     const extractJSON = (str: string | null) => {
         let jsonStr = str || '{}';
@@ -90,13 +89,12 @@ export async function POST(req: Request) {
         const parsedDesign = extractJSON(result);
         return NextResponse.json(parsedDesign);
     } catch (e) {
-        console.error("Design JSON Parse Error", e);
-        return NextResponse.json({ error: 'Failed to parse Design response' }, { status: 500 });
+        console.error("JSON Parse Error", e);
+        return NextResponse.json({ error: 'Failed to parse AI design response' }, { status: 500 });
     }
 
-  } catch (error: unknown) {
-    console.error('AI Design Error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+  } catch (error: any) {
+    console.error('AI Design Generation Error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

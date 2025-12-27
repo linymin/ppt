@@ -19,6 +19,7 @@ export default function Home() {
     setIsLoading(true);
     setOriginalContent(input); // Save original content
     try {
+      // 1. Generate Content First
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -32,15 +33,31 @@ export default function Home() {
       } else {
         const text = await response.text();
         console.error('API Error (Non-JSON):', text);
-        // Try to extract a meaningful error message from HTML if possible, or just fail
-        throw new Error(`Server error (${response.status}): The server returned an HTML error page instead of JSON. Check the server console for details.`);
+        throw new Error(`Server error (${response.status}): The server returned an HTML error page instead of JSON.`);
       }
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to generate plan');
       }
 
+      // Set initial plan without design
       setPlan(data);
+
+      // 2. Fetch Design in parallel (or after) - forcing a separate request prevents timeout
+      // We don't block the UI, we just update the plan when it arrives
+      fetch('/api/design', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: input }),
+      })
+      .then(res => res.json())
+      .then(designData => {
+          if (designData && !designData.error) {
+              setPlan(prev => prev ? { ...prev, design: designData } : null);
+          }
+      })
+      .catch(err => console.error('Design generation failed quietly:', err));
+
     } catch (error) {
       console.error('Generation failed', error);
       alert('Failed to generate plan. Please try again.');

@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
+// 设置最大执行时间为 60 秒（Vercel Pro 限制，Hobby 计划可能限制为 10 秒，但建议配置）
+export const maxDuration = 60;
+
 const modelId = process.env.DOUBAO_MODEL_ID || 'doubao-seed-1-6-lite-251015';
 
 export async function POST(req: Request) {
